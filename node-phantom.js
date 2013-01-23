@@ -167,7 +167,7 @@ module.exports={
 						delete cmds[cmdId];
 						break;
                     case 'clearedCookies':
-                    case 'disabledCookies':
+                    case 'enabledCookies':
                         // TODO
                         break;
 					default:
@@ -194,8 +194,8 @@ module.exports={
 					clearCookies:function(callback){
 						request(socket,[0,'clearCookies'],callbackOrDummy(callback));
 					},
-					disableCookies:function(callback){
-						request(socket,[0,'disableCookies'],callbackOrDummy(callback));
+					enableCookies:function(enable,callback){
+						request(socket,[0,'enableCookies',enable],callbackOrDummy(callback));
 					}
 				};
 

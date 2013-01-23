@@ -48,9 +48,9 @@ controlpage.onAlert=function(msg){
 			phantom.clearCookies();
 			respond([0,cmdId,'clearedCookies',true]);
 			break;
-		case 'disableCookies':
-			phantom.cookiesEnabled = false;
-			respond([0,cmdId,'disabledCookies',true]);
+		case 'enableCookies':
+			phantom.cookiesEnabled = request[3];
+			respond([0,cmdId,'enabledCookies',request[3]]);
 			break;
 		case 'exit':
 			respond([0,cmdId,'phantomExited']);	//optimistically to get the response back before the line is cut
