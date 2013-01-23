@@ -40,7 +40,7 @@ module.exports={
 				callback(exitCode!==0,phantom);
 			},100);
 		};
-		
+
 		var server=http.createServer(function(request,response){
 			response.writeHead(200,{"Content-Type": "text/html"});
 			response.end('<html><head><script src="/socket.io/socket.io.js" type="text/javascript"></script><script type="text/javascript">\n\
@@ -53,7 +53,7 @@ module.exports={
 				};\n\
 			</script></head><body></body></html>');
 		}).listen();
-		
+
 		var port=server.address().port;
 		spawnPhantom(port,function(err,phantom){
 			if(err){
@@ -72,9 +72,9 @@ module.exports={
 				cmds[cmdid]={cb:callback};
 				cmdid++;
 			}
-		
+
 			var io=socketio.listen(server,{'log level':1});
-		
+
 			io.sockets.on('connection',function(socket){
 				socket.on('res',function(response){
 	//				console.log(response);
@@ -166,11 +166,15 @@ module.exports={
 						cmds[cmdId].cb(null);
 						delete cmds[cmdId];
 						break;
+                    case 'clearedCookies':
+                    case 'disabledCookies':
+                        // TODO
+                        break;
 					default:
 						console.error('got unrecognized response:'+response);
 						break;
-					}				
-				});		
+					}
+				});
 				socket.on('push', function(request) {
 					var id = request[0];
 					var cmd = request[1];
@@ -178,7 +182,7 @@ module.exports={
 					callback(unwrapArray(request[2]));
 				});
 				var proxy={
-					createPage:function(callback){					
+					createPage:function(callback){
 						request(socket,[0,'createPage'],callbackOrDummy(callback));
 					},
 					injectJs:function(filename,callback){
@@ -186,9 +190,15 @@ module.exports={
 					},
 					exit:function(callback){
 						request(socket,[0,'exit'],callbackOrDummy(callback));
+					},
+					clearCookies:function(callback){
+						request(socket,[0,'clearCookies'],callbackOrDummy(callback));
+					},
+					disableCookies:function(callback){
+						request(socket,[0,'disableCookies'],callbackOrDummy(callback));
 					}
 				};
-			
+
 				callback(null,proxy);
 			});
 		});
