@@ -54,6 +54,7 @@ controlpage.onAlert=function(msg){
 			break;
 		case 'exit':
 			respond([0,cmdId,'phantomExited']);	//optimistically to get the response back before the line is cut
+            phantom.exit(); // really exit since exitAck never seems to get here.
 			break;
 		case 'exitAck':
 			phantom.exit();
