@@ -4,6 +4,18 @@ var http=require('http');
 var socketio=require('socket.io');
 var child=require('child_process');
 
+var phanta = [];
+
+process.on('exit', function() {
+    var phantom, _i, _len, _results;
+    _results = [];
+    for (_i = 0, _len = phanta.length; _i < _len; _i++) {
+      phantom = phanta[_i];
+      _results.push(phantom.exit());
+    }
+    return _results;
+});
+
 function callbackOrDummy(callback){
 	if(callback===undefined)callback=function(){};
 	return callback;
@@ -56,6 +68,7 @@ module.exports={
 
 		var port=server.address().port;
 		spawnPhantom(port,function(err,phantom){
+            phanta.push(phantom);
 			if(err){
 				server.close();
 				callback(true);
