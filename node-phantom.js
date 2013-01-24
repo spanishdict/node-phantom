@@ -174,13 +174,11 @@ module.exports={
 					case 'pageRendered':
 					case 'pageEventSent':
 					case 'pageFileUploaded':
+                    case 'clearedCookies':
+                    case 'enabledCookies':
 						cmds[cmdId].cb(null);
 						delete cmds[cmdId];
 						break;
-                    case 'clearedCookies':
-                    case 'enabledCookies':
-                        // TODO
-                        break;
 					default:
 						console.error('got unrecognized response:'+response);
 						break;
