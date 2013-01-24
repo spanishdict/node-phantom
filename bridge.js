@@ -30,9 +30,14 @@ function setupPushNotifications(id, page) {
 controlpage.onAlert=function(msg){
 	var request=JSON.parse(msg);
 	var cmdId=request[1];
-//	console.log(request);
+    var cmd = request[2];
+    var arg1 = request[3] || null;
+    var arg2 = request[4] || null;
+    var arg3 = request[5] || null;
+    var arg4 = request[6] || null;
+	//console.log(request);
 	if(request[0]===0){
-		switch(request[2]){
+		switch(cmd){
 		case 'createPage':
 			var id=pageId++;
 			var page=webpage.create();
@@ -41,7 +46,7 @@ controlpage.onAlert=function(msg){
 			respond([id,cmdId,'pageCreated']);
 			break;
 		case 'injectJs':
-			var success=phantom.injectJs(request[3]);
+			var success=phantom.injectJs(arg1);
 			respond([0,cmdId,'jsInjected',success]);
 			break;
 		case 'clearCookies':
@@ -49,8 +54,8 @@ controlpage.onAlert=function(msg){
 			respond([0,cmdId,'clearedCookies',true]);
 			break;
 		case 'enableCookies':
-			phantom.cookiesEnabled = request[3];
-			respond([0,cmdId,'enabledCookies',request[3]]);
+			phantom.cookiesEnabled = arg1;
+			respond([0,cmdId,'enabledCookies',arg1]);
 			break;
 		case 'exit':
 			respond([0,cmdId,'phantomExited']);	//optimistically to get the response back before the line is cut
@@ -67,12 +72,12 @@ controlpage.onAlert=function(msg){
 	else{
 		var id=request[0];
 		var page=pages[id];
-		switch(request[2]){
+		switch(cmd){
 		case 'pageOpen':
-			page.open(request[3]);
+			page.open(arg1);
 			break;
 		case 'pageOpenWithCallback':
-			page.open(request[3], function(status){
+			page.open(arg1, function(status){
 				respond([id, cmdId, 'pageOpened', status]);
 			});
 			break;
@@ -81,19 +86,20 @@ controlpage.onAlert=function(msg){
 			respond([id,cmdId,'pageReleased']);
 			break;
 		case 'pageInjectJs':
-			var result=page.injectJs(request[3]);
+			var result=page.injectJs(arg1);
 			respond([id,cmdId,'pageJsInjected',JSON.stringify(result)]);
 			break;
 		case 'pageIncludeJs':
-			page.includeJs(request[3]);
+			page.includeJs(arg1);
 			respond([id,cmdId,'pageJsIncluded']);
 			break;
 		case 'pageSendEvent':
-			page.sendEvent(request[3],request[4],request[5]);
+            //console.log("got pageSendEvent", arg1, arg2, arg3, arg4);
+			page.sendEvent(arg1, arg2, arg3, arg4);
 			respond([id,cmdId,'pageEventSent']);
 			break;
 		case 'pageUploadFile':
-			page.uploadFile(request[3],request[4]);
+			page.uploadFile(arg1,arg2);
 			respond([id,cmdId,'pageFileUploaded']);
 			break;
 		case 'pageEvaluate':
@@ -101,23 +107,23 @@ controlpage.onAlert=function(msg){
 			respond([id,cmdId,'pageEvaluated',JSON.stringify(result)]);
 			break;
 		case 'pageRender':
-			page.render(request[3]);
+			page.render(arg1);
 			respond([id,cmdId,'pageRendered']);
 			break;
 		case 'pageRenderBase64':
-			var result=page.renderBase64(request[3]);
+			var result=page.renderBase64(arg1);
 			respond([id,cmdId,'pageRenderBase64Done', result]);
 			break;
 		case 'pageSet':
-			page[request[3]]=request[4];
+			page[arg1]=arg2;
 			respond([id,cmdId,'pageSetDone']);
 			break;
 		case 'pageGet':
-			var result=page[request[3]];
+			var result=page[arg1];
 			respond([id,cmdId,'pageGetDone',JSON.stringify(result)]);
 			break;
 		case 'pageSetFn':
-			page[request[3]] = eval('(' + request[4] + ')')
+			page[arg1] = eval('(' + arg2 + ')');
 			break;
 		default:
 			console.error('unrecognized request:'+request);
