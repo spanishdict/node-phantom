@@ -135,7 +135,9 @@ module.exports={
 								request(socket, [id, 'pageSetFn', pageCallbackName, fn.toString()], callbackOrDummy(callback));
 							}
 						};
-						pages[id] = pageProxy;
+
+                        // Add page proxy.
+                        pages[id] = pageProxy;
 						cmds[cmdId].cb(null,pageProxy);
 						delete cmds[cmdId];
 						break;
@@ -190,6 +192,8 @@ module.exports={
 					var callback = callbackOrDummy(pages[id] ? pages[id][cmd] : undefined);
 					callback(unwrapArray(request[2]));
 				});
+
+                // Browser proxy.
 				var proxy={
 					createPage:function(callback){
 						request(socket,[0,'createPage'],callbackOrDummy(callback));
@@ -208,7 +212,10 @@ module.exports={
 					}
 				};
 
+                // Save a reference to proxy for clean up.
                 phanta.push(proxy);
+
+                // Return browser proxy.
                 callback(null,proxy);
 			});
 		});
