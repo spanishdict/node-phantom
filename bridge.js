@@ -21,7 +21,7 @@ function setupPushNotifications(id, page) {
   ];
 	callbacks.forEach(function(cb) {
 		page[cb] = function() { push([id, cb, Array.prototype.slice.call(arguments)]); }
-	})
+	});
 	function push(notification) {
 		controlpage.evaluate('function(){socket.emit("push",'+JSON.stringify(notification)+');}');
 	}

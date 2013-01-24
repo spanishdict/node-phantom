@@ -19,8 +19,9 @@ function callbackOrDummy(callback){
 	if(callback===undefined)callback=function(){};
 	return callback;
 }
+
 function unwrapArray(arr) {
-	return arr && arr.length == 1 ? arr[0] : arr
+	return arr && arr.length == 1 ? arr[0] : arr;
 }
 
 module.exports={
