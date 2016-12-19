@@ -4,22 +4,10 @@ var http=require('http');
 var socketio=require('socket.io');
 var child=require('child_process');
 
-var phanta = [];
-process.on('exit', function() {
-    var phantom, _i, _len, _results;
-    _results = [];
-    for (_i = 0, _len = phanta.length; _i < _len; _i++) {
-      phantom = phanta[_i];
-      _results.push(phantom.exit());
-    }
-    return _results;
-});
-
 function callbackOrDummy(callback){
 	if(callback===undefined)callback=function(){};
 	return callback;
 }
-
 function unwrapArray(arr) {
 	return arr && arr.length == 1 ? arr[0] : arr;
 }
@@ -32,8 +20,8 @@ module.exports={
 
 		function spawnPhantom(port,callback){
 			var args=[];
-			for(var param in options.parameters) {
-				args.push('--' + param + '=' + options.parameters[param]);
+			for(var parm in options.parameters) {
+				args.push('--' + parm + '=' + options.parameters[parm]);
 			}
 			args=args.concat([__dirname + '/bridge.js', port]);
 
@@ -44,14 +32,17 @@ module.exports={
 			phantom.stderr.on('data',function(data){
 				return console.warn('phantom stderr: '+data);
 			});
-			var exitCode=0;
-			phantom.on('exit',function(code){
-				exitCode=code;
+			var hasErrors=false;
+			phantom.on('error',function(){
+				hasErrors=true;
 			});
-			setTimeout(function(){	//wait a bit to see if the spawning of phantomjs immediately fails due to bad path or similar
-				callback(exitCode!==0,phantom);
+			phantom.on('exit',function(code){
+				hasErrors=true; //if phantom exits it is always an error
+			});
+			setTimeout(function(){ //wait a bit to see if the spawning of phantomjs immediately fails due to bad path or similar
+				callback(hasErrors,phantom);
 			},100);
-		};
+		}
 
 		var server=http.createServer(function(request,response){
 			response.writeHead(200,{"Content-Type": "text/html"});
@@ -64,7 +55,8 @@ module.exports={
 					window.socket = socket;\n\
 				};\n\
 			</script></head><body></body></html>');
-		}).listen(function() {
+		}).listen(function(){
+			var io=socketio.listen(server,{'log level':1});
 
 			var port=server.address().port;
 			spawnPhantom(port,function(err,phantom){
@@ -78,18 +70,16 @@ module.exports={
 				var cmdid=0;
 				function request(socket,args,callback){
 					args.splice(1,0,cmdid);
-		//			console.log('requesting:'+args);
+//					console.log('requesting:'+args);
 					socket.emit('cmd',JSON.stringify(args));
 
 					cmds[cmdid]={cb:callback};
 					cmdid++;
 				}
 
-				var io=socketio.listen(server,{'log level':1});
-
 				io.sockets.on('connection',function(socket){
 					socket.on('res',function(response){
-		//				console.log(response);
+//						console.log(response);
 						var id=response[0];
 						var cmdId=response[1];
 						switch(response[2]){
@@ -126,6 +116,9 @@ module.exports={
 								evaluate:function(evaluator,callback){
 									request(socket,[id,'pageEvaluate',evaluator.toString()].concat(Array.prototype.slice.call(arguments,2)),callbackOrDummy(callback));
 								},
+								evaluateAsync:function(evaluator,callback){
+									request(socket,[id,'pageEvaluateAsync',evaluator.toString()].concat(Array.prototype.slice.call(arguments,2)),callbackOrDummy(callback));
+								},
 								set:function(name,value,callback){
 									request(socket,[id,'pageSet',name,value],callbackOrDummy(callback));
 								},
@@ -134,17 +127,19 @@ module.exports={
 								},
 								setFn: function(pageCallbackName, fn, callback) {
 									request(socket, [id, 'pageSetFn', pageCallbackName, fn.toString()], callbackOrDummy(callback));
+								},
+								setViewport: function(viewport, callback) {
+									request(socket, [id, 'pageSetViewport', viewport.width, viewport.height], callbackOrDummy(callback));
 								}
-							};
-
-	                        // Add page proxy.
-	                        pages[id] = pageProxy;
+							}
+							pages[id] = pageProxy;
 							cmds[cmdId].cb(null,pageProxy);
 							delete cmds[cmdId];
 							break;
 						case 'phantomExited':
 							request(socket,[0,'exitAck']);
 							server.close();
+							io.set('client store expiration', 0);
 							cmds[cmdId].cb();
 							delete cmds[cmdId];
 							break;
@@ -154,7 +149,7 @@ module.exports={
 							delete cmds[cmdId];
 							break;
 						case 'pageOpened':
-							if(cmds[cmdId]!==undefined){	//if page is redirected, the pageopen event is called again - we do not want that currently.
+							if(cmds[cmdId]!==undefined){ //if page is redirected, the pageopen event is called again - we do not want that currently.
 								if(cmds[cmdId].cb !== undefined){
 									cmds[cmdId].cb(null, response[3]);
 								}
@@ -174,11 +169,14 @@ module.exports={
 							delete pages[id]; // fallthru
 						case 'pageSetDone':
 						case 'pageJsIncluded':
+						case 'cookieAdded':
 						case 'pageRendered':
 						case 'pageEventSent':
 						case 'pageFileUploaded':
-	                    case 'clearedCookies':
-	                    case 'enabledCookies':
+						case 'clearedCookies':
+						case 'enabledCookies':
+						case 'pageSetViewportDone':
+						case 'pageEvaluatedAsync':
 							cmds[cmdId].cb(null);
 							delete cmds[cmdId];
 							break;
@@ -193,8 +191,6 @@ module.exports={
 						var callback = callbackOrDummy(pages[id] ? pages[id][cmd] : undefined);
 						callback(unwrapArray(request[2]));
 					});
-
-	                // Browser proxy.
 					var proxy={
 						createPage:function(callback){
 							request(socket,[0,'createPage'],callbackOrDummy(callback));
@@ -202,23 +198,36 @@ module.exports={
 						injectJs:function(filename,callback){
 							request(socket,[0,'injectJs',filename],callbackOrDummy(callback));
 						},
-						exit:function(callback){
-							request(socket,[0,'exit'],callbackOrDummy(callback));
+						addCookie: function(cookie, callback){
+							request(socket,[0,'addCookie', cookie],callbackOrDummy(callback));
 						},
 						clearCookies:function(callback){
 							request(socket,[0,'clearCookies'],callbackOrDummy(callback));
 						},
 						enableCookies:function(enable,callback){
 							request(socket,[0,'enableCookies',enable],callbackOrDummy(callback));
-						}
+						},
+						exit:function(callback){
+							phantom.removeListener('exit',prematureExitHandler); //an exit is no longer premature now
+							request(socket,[0,'exit'],callbackOrDummy(callback));
+						},
+						on: function(){
+							phantom.on.apply(phantom, arguments);
+						},
+						_phantom: phantom
 					};
 
-	                // Save a reference to proxy for clean up.
-	                phanta.push(proxy);
-
-	                // Return browser proxy.
-	                callback(null,proxy);
+					callback(null,proxy);
 				});
+
+				// An exit event listener that is registered AFTER the phantomjs process
+				// is successfully created.
+				var prematureExitHandler=function(code,signal){
+					console.warn('phantom crash: code '+code);
+					server.close();
+				};
+
+				phantom.on('exit',prematureExitHandler);
 			});
 		});
 	}
